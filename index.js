@@ -25,21 +25,45 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
 
 
 
         const menuCollection = client.db("bistroDb").collection("menu");
         const reviewCollection = client.db("bistroDb").collection("reviews");
+        const cartCollection = client.db("bistroDb").collection("carts");
 
-        app.get('/menu', async(req,res)=>{
+        app.get('/menu', async (req, res) => {
             const result = await menuCollection.find().toArray();
             res.send(result);
         });
-        app.get('/reviews', async(req,res)=>{
+        app.get('/reviews', async (req, res) => {
             const result = await reviewCollection.find().toArray();
             res.send(result);
         });
+
+
+        // cart collection apis
+        app.get('/carts', async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([]);
+            }
+            else {
+                const query = { email: email };
+                const result = await cartCollection.find(query).toArray()
+                res.send(result);
+            }
+
+        })
+
+
+        app.post('/carts', async (req, res) => {
+            const item = req.body;
+            console.log(item);
+            const result = await cartCollection.insertOne(item);
+            res.send(result);
+        })
 
 
 
@@ -67,3 +91,20 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     console.log(`Bistro is siting on port: ${port}`);
 })
+
+
+/*****
+ * naming convention
+ * 
+ * user: userCollection
+ * app.get('/users')
+ * app.get('/users/:id') ---- for get particular user
+ * app.post('/users') ---for create user
+ * app.patch('/users/:id') ---- for particular user update!
+ * app.put('/users/:id') ---- for particular user update!
+ * app.delete('/users/:id') ---- for particular user delete!
+ * 
+ * 
+ * 
+ * 
+ * */ 
