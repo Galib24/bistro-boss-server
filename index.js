@@ -1,12 +1,33 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
 // middleware
 app.use(cors());
 app.use(express.json());
+
+// jwt middleware
+const jwtVerify = (req, res, next) => {
+    const authorization = req.headers.authorization;
+    // console.log(authorization);
+    if (!authorization) {
+        return res.status(401).send({ message: 'Unauthorized Access' })
+    }
+    // bearer token
+    const token = authorization.split(' ')[1];
+
+    // verify jwt
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ message: 'Unauthorized Access' })
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
 
 
 
@@ -25,7 +46,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        // await client.connect();
+        await client.connect();
 
 
 
@@ -36,10 +57,52 @@ async function run() {
 
 
 
+        // jwt(JSON WEB TOKEN)
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            res.send({ token });
+        })
 
+        // middleware of verifyAdmin  //use JwtVerify using verifyAdmin
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: 'forbidden message' });
+
+            }
+            next();
+
+        }
+
+        // secure user from hacker
+        /**
+         * 0) do not show secure link to those who should not see the links
+         * 1) use jwtVerify
+         * 2) use verifyAdmin middleware
+         * 
+         * 
+         * */
         // user related api that get or show all users
-        app.get('/users', async (req, res) => {
+        app.get('/users', jwtVerify, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray();
+            res.send(result);
+        })
+
+
+
+
+        // get admin user and security check 1) jwtVerify 2) email 3) check admin
+        app.get('/users/admin/:email', jwtVerify, async (req, res) => {
+            const email = req.params.email;
+            if (req.decoded.email !== email) {
+                res.send({ admin: false })
+            }
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            const result = { admin: user?.role === 'admin' }
             res.send(result);
         })
 
@@ -58,7 +121,7 @@ async function run() {
         })
 
 
-        // user related api for goggle account not render many account in data
+        // user related api for google account not render many account in data
         app.post('/users', async (req, res) => {
             const user = req.body;
 
@@ -80,6 +143,17 @@ async function run() {
             const result = await menuCollection.find().toArray();
             res.send(result);
         });
+        // menu post or create bu user
+        app.post('/menu', async (req, res) => {
+            const newItem = req.body;
+            const result = await menuCollection.insertOne(newItem)
+            res.send(result);
+        })
+
+
+
+
+
         // review related api
         app.get('/reviews', async (req, res) => {
             const result = await reviewCollection.find().toArray();
@@ -88,10 +162,14 @@ async function run() {
 
 
         // cart collection apis
-        app.get('/carts', async (req, res) => {
+        app.get('/carts', jwtVerify, async (req, res) => {
             const email = req.query.email;
             if (!email) {
                 res.send([]);
+            }
+            const decodedEmail = req.decoded.email;
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'Unauthorized Access' })
             }
             else {
                 const query = { email: email };
