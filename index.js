@@ -144,7 +144,7 @@ async function run() {
             res.send(result);
         });
         // menu post or create bu user
-        app.post('/menu', async (req, res) => {
+        app.post('/menu', jwtVerify, verifyAdmin, async (req, res) => {
             const newItem = req.body;
             const result = await menuCollection.insertOne(newItem)
             res.send(result);
