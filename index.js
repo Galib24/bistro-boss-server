@@ -224,13 +224,47 @@ async function run() {
             const payment = req.body;
             const insertedResult = await paymentCollection.insertOne(payment)
 
-           
+
             const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } }
             const deleteResult = await cartCollection.deleteMany(query)
             res.send({ insertedResult, deleteResult });
         })
 
+        // admin stats
+        app.get('/admin-stats', async (req, res) => {
+            const users = await usersCollection.estimatedDocumentCount();
+            const products = await menuCollection.estimatedDocumentCount();
+            const orders = await paymentCollection.estimatedDocumentCount();
 
+            // best to get sum of the price field  is to use group and sum operators
+
+
+            /* 
+            
+         await paymentCollection.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        total: {$sum: '$price}
+                    }
+                }
+            ]).toArray()
+            
+            
+            */
+
+
+            const payments = await paymentCollection.find().toArray();
+            const revenue = payments.reduce((sum, payment) => sum + payment.price, 0)
+
+
+            res.send({
+                users,
+                products,
+                orders,
+                revenue
+            })
+        })
 
 
         // Send a ping to confirm a successful connection
