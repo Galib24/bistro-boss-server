@@ -231,7 +231,7 @@ async function run() {
         })
 
         // admin stats
-        app.get('/admin-stats', async (req, res) => {
+        app.get('/admin-stats', jwtVerify, verifyAdmin, async (req, res) => {
             const users = await usersCollection.estimatedDocumentCount();
             const products = await menuCollection.estimatedDocumentCount();
             const orders = await paymentCollection.estimatedDocumentCount();
@@ -265,6 +265,78 @@ async function run() {
                 revenue
             })
         })
+
+        /***
+         * -----------------
+         * 
+         * 
+         * 2) BANGLA  system(second best solution)
+         * 
+         * --------
+         * 
+         * 1) load all payments
+         * 2) for each payment, get the menuItems array
+         * 3)foe each item in the menuItem array get the menuItem from
+         * the menu
+         * 4) put them in an array: allOrderedItems
+         * 5) separate allOrderedItems by category using filter
+         * 6)now get the quantity by using length: pizzas.length
+         * 7)for each category use reduce to get the
+         * total amount spent on this category
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * *
+         * 
+         * 
+         */
+
+
+        // admin order stats with chart
+        app.get('/order-stats', jwtVerify, verifyAdmin, async (req, res) => {
+            const pipeline = [
+                {
+                    $lookup: {
+                        from: 'menu',
+                        localField: 'menuItems',
+                        foreignField: '_id',
+                        as: 'menuItemsData'
+                    }
+                },
+                {
+                    $unwind: '$menuItemsData'
+                },
+                {
+                    $group: {
+                        _id: '$menuItemsData.category',
+                        count: { $sum: 1 },
+                        total: { $sum: '$menuItemsData.price' }
+                    }
+                },
+                {
+                    $project: {
+                        category: '$_id',
+                        count: 1,
+                        total: { $round: ['$total', 2] }
+                    }
+                }
+            ];
+
+            const result = await paymentCollection.aggregate(pipeline).toArray()
+            res.send(result)
+
+        })
+
+
+
+
+
+
+
+
 
 
         // Send a ping to confirm a successful connection
