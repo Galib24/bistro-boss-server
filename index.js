@@ -220,10 +220,14 @@ async function run() {
 
 
         // payment related api
-        app.post('/payments',jwtVerify, async (req, res) => {
+        app.post('/payments', jwtVerify, async (req, res) => {
             const payment = req.body;
-            const result = await paymentCollection.insertOne(payment)
-            res.send(result);
+            const insertedResult = await paymentCollection.insertOne(payment)
+
+           
+            const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } }
+            const deleteResult = await cartCollection.deleteMany(query)
+            res.send({ insertedResult, deleteResult });
         })
 
 
