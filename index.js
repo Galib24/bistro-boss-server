@@ -55,6 +55,7 @@ async function run() {
         const usersCollection = client.db("bistroDb").collection("users");
         const reviewCollection = client.db("bistroDb").collection("reviews");
         const cartCollection = client.db("bistroDb").collection("carts");
+        const paymentCollection = client.db("bistroDb").collection("payments");
 
 
 
@@ -187,7 +188,7 @@ async function run() {
 
         })
 
-
+        // carts section create and delete
         app.post('/carts', async (req, res) => {
             const item = req.body;
             const result = await cartCollection.insertOne(item);
@@ -215,6 +216,14 @@ async function run() {
             res.send({
                 clientSecret: paymentIntent.client_secret
             })
+        })
+
+
+        // payment related api
+        app.post('/payments',jwtVerify, async (req, res) => {
+            const payment = req.body;
+            const result = await paymentCollection.insertOne(payment)
+            res.send(result);
         })
 
 
